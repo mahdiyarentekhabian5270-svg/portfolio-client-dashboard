@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from html import escape as html_escape
 from typing import Any
@@ -108,8 +109,23 @@ st.markdown(
 # Cached source calls. UI reruns each minute, while provider requests are throttled
 # to roughly the actual publication cadence of each free data source.
 @st.cache_data(ttl=60, show_spinner=False)
-def cached_tsetmc_quote(ins_code: str) -> dict[str, Any]:
-    return fetch_tsetmc_quote(ins_code)
+def cached_tsetmc_quotes(ins_codes: tuple[str, ...]) -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
+    """Fetch all fund quotes concurrently instead of waiting 12s per fund."""
+    quotes: dict[str, dict[str, Any]] = {}
+    errors: dict[str, str] = {}
+    if not ins_codes:
+        return quotes, errors
+
+    # Keep concurrency bounded to avoid overloading TSETMC or triggering rate limits.
+    with ThreadPoolExecutor(max_workers=min(8, len(ins_codes))) as executor:
+        futures = {executor.submit(fetch_tsetmc_quote, code): code for code in ins_codes}
+        for future in as_completed(futures):
+            code = futures[future]
+            try:
+                quotes[code] = future.result()
+            except Exception as exc:
+                errors[code] = str(exc)
+    return quotes, errors
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -118,8 +134,22 @@ def cached_crypto_ticker_map() -> dict[str, dict[str, Any]]:
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def cached_crypto_quote(coin_id: str) -> dict[str, Any]:
-    return fetch_coinpaprika_quote(coin_id)
+def cached_crypto_quotes(coin_ids: tuple[str, ...]) -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
+    """Fetch fallback quotes concurrently for coins missing from the bulk ticker list."""
+    quotes: dict[str, dict[str, Any]] = {}
+    errors: dict[str, str] = {}
+    if not coin_ids:
+        return quotes, errors
+
+    with ThreadPoolExecutor(max_workers=min(5, len(coin_ids))) as executor:
+        futures = {executor.submit(fetch_coinpaprika_quote, coin_id): coin_id for coin_id in coin_ids}
+        for future in as_completed(futures):
+            coin_id = futures[future]
+            try:
+                quotes[coin_id] = future.result()
+            except Exception as exc:
+                errors[coin_id] = str(exc)
+    return quotes, errors
 
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -175,11 +205,18 @@ def get_quote(
     asset: dict[str, Any],
     crypto_ticker_map: dict[str, dict[str, Any]] | None = None,
     crypto_map_error: str | None = None,
+    tsetmc_quote_map: dict[str, dict[str, Any]] | None = None,
+    tsetmc_errors: dict[str, str] | None = None,
+    crypto_quote_map: dict[str, dict[str, Any]] | None = None,
+    crypto_errors: dict[str, str] | None = None,
 ) -> tuple[dict[str, Any] | None, str | None]:
     key = f"asset:{asset['id']}"
     try:
         if asset["type"] == "fund":
-            quote_data = cached_tsetmc_quote(asset["instrument_code"])
+            ins_code = str(asset["instrument_code"])
+            quote_data = (tsetmc_quote_map or {}).get(ins_code)
+            if quote_data is None:
+                raise MarketDataError((tsetmc_errors or {}).get(ins_code, "قیمت صندوق از TSETMC دریافت نشد."))
         elif asset["type"] == "crypto":
             coin_id = asset["coin_id"]
             if coin_id.casefold() == "usdt-tether":
@@ -189,9 +226,10 @@ def get_quote(
             elif crypto_ticker_map and coin_id in crypto_ticker_map:
                 quote_data = crypto_ticker_map[coin_id]
             else:
-                # The free bulk endpoint covers the top 2,000 coins. For an
-                # asset outside that list, try the single-coin endpoint.
-                quote_data = cached_crypto_quote(coin_id)
+                quote_data = (crypto_quote_map or {}).get(coin_id)
+                if quote_data is None:
+                    detail = (crypto_errors or {}).get(coin_id) or crypto_map_error
+                    raise MarketDataError(detail or "قیمت رمزارز از CoinPaprika دریافت نشد.")
         else:
             return None, "نوع دارایی ناشناخته است."
         save_last_quote(key, quote_data)
@@ -234,6 +272,7 @@ def mark_quote_age(quote_data: dict[str, Any], asset_type: str) -> tuple[bool, s
 
 
 def get_market_snapshot(assets: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any] | None, str | None]:
+    # USD and the CoinPaprika bulk list are each fetched once and cached.
     usd_quote, fx_error = get_usd_quote()
     usd_irr = float(usd_quote["price"]) if usd_quote else None
     fx_stale, fx_age_label = mark_quote_age(usd_quote, "fx") if usd_quote else (True, "نرخ دلار در دسترس نیست")
@@ -250,9 +289,38 @@ def get_market_snapshot(assets: list[dict[str, Any]]) -> tuple[list[dict[str, An
         except Exception as exc:
             crypto_map_error = str(exc)
 
+    # Fetch all TSETMC instruments concurrently. The old implementation fetched
+    # 13 funds one by one, so 12-second timeouts could accumulate to ~156 seconds.
+    ins_codes = tuple(sorted({str(a["instrument_code"]) for a in assets if a.get("type") == "fund" and a.get("instrument_code")}))
+    try:
+        tsetmc_quote_map, tsetmc_errors = cached_tsetmc_quotes(ins_codes)
+    except Exception as exc:
+        tsetmc_quote_map, tsetmc_errors = {}, {code: str(exc) for code in ins_codes}
+
+    # The free bulk list may omit low-rank/tokenized assets. Fetch only missing
+    # coin IDs in parallel rather than making serial fallback requests.
+    crypto_ids = tuple(sorted({
+        str(a["coin_id"]) for a in assets
+        if a.get("type") == "crypto"
+        and str(a.get("coin_id", "")).casefold() != "usdt-tether"
+        and (not crypto_ticker_map or str(a["coin_id"]) not in crypto_ticker_map)
+    }))
+    try:
+        crypto_quote_map, crypto_errors = cached_crypto_quotes(crypto_ids)
+    except Exception as exc:
+        crypto_quote_map, crypto_errors = {}, {coin_id: str(exc) for coin_id in crypto_ids}
+
     rows: list[dict[str, Any]] = []
     for asset in assets:
-        quote_data, error = get_quote(asset, crypto_ticker_map, crypto_map_error)
+        quote_data, error = get_quote(
+            asset,
+            crypto_ticker_map,
+            crypto_map_error,
+            tsetmc_quote_map,
+            tsetmc_errors,
+            crypto_quote_map,
+            crypto_errors,
+        )
         row: dict[str, Any] = {
             "id": asset["id"],
             "asset": asset.get("name") or asset.get("symbol") or "دارایی",
@@ -357,7 +425,7 @@ if not assets:
     )
     st.stop()
 
-with st.spinner("در حال دریافت آخرین قیمت‌های قابل دسترس..."):
+with st.spinner("در حال دریافت قیمت‌ها از منابع بازار (درخواست‌های صندوق به‌صورت هم‌زمان)..."):
     rows, usd_quote, fx_error = get_market_snapshot(assets)
 
 priced_rows = [row for row in rows if row["value_irr"] is not None]
