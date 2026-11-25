@@ -1,0 +1,146 @@
+[
+  {
+    "id": "0aec253eef8f",
+    "type": "fund",
+    "name": "صندوق طلاي عيار مفيد",
+    "symbol": "عيار",
+    "instrument_code": "34144395039913458",
+    "quantity": 744.0
+  },
+  {
+    "id": "1c76d667c062",
+    "type": "fund",
+    "name": "صندوق س.كالاي آگاه",
+    "symbol": "مثقال",
+    "instrument_code": "32469128621155736",
+    "quantity": 1780.0
+  },
+  {
+    "id": "5ee6fcbe044d",
+    "type": "fund",
+    "name": "صندوق س. آوند مفيد-د",
+    "symbol": "آوند",
+    "instrument_code": "31039212000825988",
+    "quantity": 13938.0
+  },
+  {
+    "id": "f219cf708c80",
+    "type": "fund",
+    "name": "صندوق س. با درآمد ثابت كيان",
+    "symbol": "كيان",
+    "instrument_code": "53251602435454519",
+    "quantity": 6500.0
+  },
+  {
+    "id": "6339a1d81723",
+    "type": "fund",
+    "name": "صندوق س آواي سهام كيان-سهام",
+    "symbol": "رشدي كيان",
+    "instrument_code": "4170494561477386",
+    "quantity": 925.0
+  },
+  {
+    "id": "1806e0989eae",
+    "type": "fund",
+    "name": "صندوق س.كالاي كهكشان فيروزه",
+    "symbol": "آتش",
+    "instrument_code": "56987424987755487",
+    "quantity": 2910.0
+  },
+  {
+    "id": "f61f420e3532",
+    "type": "fund",
+    "name": "صندوق س شاخصي آرام مفيد",
+    "symbol": "آرام",
+    "instrument_code": "14230681955555738",
+    "quantity": 2000.0
+  },
+  {
+    "id": "c805ef83f6c2",
+    "type": "fund",
+    "name": "صندوق س.بخشي گستره فيروزه3\t-ب",
+    "symbol": "نمك",
+    "instrument_code": "59345957997866018",
+    "quantity": 1449.0
+  },
+  {
+    "id": "de0ee4f43cfd",
+    "type": "fund",
+    "name": "صندوق س. بخشي كيان1-ب",
+    "symbol": "فارما كيان",
+    "instrument_code": "40422084765096890",
+    "quantity": 950.0
+  },
+  {
+    "id": "aa4df1d0098d",
+    "type": "fund",
+    "name": "صندوق س صنايع مفيد4-بخشي",
+    "symbol": "اكتان",
+    "instrument_code": "40374861063260484",
+    "quantity": 1267.0
+  },
+  {
+    "id": "91fc90ae3b94",
+    "type": "fund",
+    "name": "صندوق س.بخشي كيان3-ب",
+    "symbol": "سيمان",
+    "instrument_code": "19262304347711355",
+    "quantity": 3100.0
+  },
+  {
+    "id": "b3c1ce1475c7",
+    "type": "fund",
+    "name": "صندوق س صنايع مفيد1- بخشي",
+    "symbol": "استيل",
+    "instrument_code": "24907784641855842",
+    "quantity": 925.0
+  },
+  {
+    "id": "6bf4b0038d8a",
+    "type": "fund",
+    "name": "پالايش نفت شيراز",
+    "symbol": "شراز",
+    "instrument_code": "14031158866706953",
+    "quantity": 184.0
+  },
+  {
+    "id": "efd263b5206f",
+    "type": "crypto",
+    "name": "Bitcoin",
+    "symbol": "BTC",
+    "coin_id": "btc-bitcoin",
+    "quantity": 0.000422937
+  },
+  {
+    "id": "74f5eaf2b021",
+    "type": "crypto",
+    "name": "Solana",
+    "symbol": "SOL",
+    "coin_id": "sol-solana",
+    "quantity": 0.0961025
+  },
+  {
+    "id": "916be6fe1040",
+    "type": "crypto",
+    "name": "Ethereum",
+    "symbol": "ETH",
+    "coin_id": "eth-ethereum",
+    "quantity": 0.00359975
+  },
+  {
+    "id": "482b1c77cc62",
+    "type": "crypto",
+    "name": "NVIDIA tokenized stock (xStock)",
+    "symbol": "NVDAX",
+    "coin_id": "nvdax-nvidia-tokenized-stock-xstock",
+    "quantity": 0.2112
+  },
+  {
+    "id": "dae30ebd3198",
+    "type": "crypto",
+    "name": "Amazon tokenized stock (xStock)",
+    "symbol": "AMZNX",
+    "coin_id": "amznx-amazon-tokenized-stock-xstock",
+    "quantity": 0.0315
+  }
+]
